@@ -17,11 +17,3 @@
   - 다시 똑같은 명령어로 실행을 하면 지금은 캐시로 보관이 되어있기 때문에 `0.9초`가 걸렸습니다.
 
 - docker hub에 기본적으로 이미지가 저장이 되고 사용한 이미지는 빠른 접근을 위해 docker cache에 올려진다는 것을 알 수 있습니다.
-
-## WSL2
-
-- 도커는 리눅스 환경에서 작동합니다. 윈도우 환경에서 리눅스 환경을 사용하기 위해서는 WSL2가 필요합니다.
-
-- WSL2를 통해 도커를 사용하면 클라이언트는 윈도우 PowerShell에 명령어를 입력하지만 서버는 WSL2를 통해 우분투 리눅스 환경을 사용합니다.
-
-- 설치에 대한 내용은 [도커 윈도우 10 Home 설치](https://www.lainyzine.com/ko/article/a-complete-guide-to-how-to-install-docker-desktop-on-windows-10/)

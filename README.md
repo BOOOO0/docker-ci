@@ -8,4 +8,5 @@
 - [도커 실행 환경(리눅스 VM)](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/how-docker-use-lnx-feature)
 - [도커 클라이언트 명령어](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/docker-image-command)
   - [컨테이너 나열하기](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/docker-process-status)
-  - [도커의 생명 주기(create, start)](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/docker-life-cycle)
+  - [도커 컨테이너 생명 주기(create, start)](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/docker-life-cycle)
+  - [도커 컨테이너 생명 주기(stop, kill)](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/docker-life-cycle2)

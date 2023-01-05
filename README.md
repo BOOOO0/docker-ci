@@ -10,3 +10,5 @@
   - [컨테이너 나열하기](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/docker-process-status)
   - [도커 컨테이너 생명 주기(create, start)](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/docker-life-cycle)
   - [도커 컨테이너 생명 주기(stop, kill)](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/docker-life-cycle2)
+  - [도커 컨테이너 생명 주기(rm)](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/docker-life-cycle3)
+- [실행중인 컨테이너에 명령어 전달하기](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/docker-exec)

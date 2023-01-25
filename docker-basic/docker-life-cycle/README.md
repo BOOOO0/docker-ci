@@ -23,3 +23,5 @@
 - `-a`옵션은 attach를 의미하며 컨테이너가 실행이 될 때 컨테이너로부터 나오는 output들을 화면에 출력해주는 역할을 합니다.
 
 ## docker stop vs docker kill
+
+- `docker stop`과 `docker kill`의 차이는 프로세스를 종료할 때 사용하는 시그널의 차이입니다. `docker stop`은 SIGTERM(15)을 사용하고 `docker kill`은 SIGKILL(9)을 사용합니다.

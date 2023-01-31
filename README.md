@@ -30,7 +30,8 @@
   - [도커 컴포즈 파일](docker-compose/README.md#도커-컴포즈-파일-구조)
   - [도커 컴포즈로 실행하는 앱에 도커 볼륨 적용](/docker-compose/README.md#도커-컴포즈-파일에-도커-볼륨-적용)
 
-# 리액트 앱 CI/CD 구축
+# 리액트 앱 CI 구축
 
 - [목적에 따른 도커 파일의 분할](/react-app-ci-cd/README.md#도커-파일의-분할)
 - [멀티 스테이지 빌드](/react-app-ci-cd/README.md#운영-환경을-위한-도커-파일-멀티-스테이지-빌드)
+- [Travis CI](/react-app-ci-cd/README.md#travis-ci)

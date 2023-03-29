@@ -12,7 +12,7 @@
 
 ## docker create
 
-- `docker create [이미지 이름]`을 실행시키면 이미지가 생성이 되고 컨테이너의 ID가 반환됩니다.
+- `docker create [이미지 이름]`을 실행시키면 해당 이미지의 컨테이너가 생성이 되고 컨테이너의 ID가 반환됩니다.
 
 ## docker start
 

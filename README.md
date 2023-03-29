@@ -14,6 +14,8 @@
 - [실행중인 컨테이너에 명령어 전달하기(docker exec)](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/docker-exec)
 - [컨테이너에 내부에서 셸로 명령어 전달하기(docker exec -it)](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/docker-conatiner-shell)
 - [도커 파일로 이미지 생성하기(docker build)](https://github.com/BOOOO0/docker-ci/tree/main/docker-basic/docker-file-create-image)
+- [도커 이미지, 컨테이너 세부정보 확인하기(docker inspect)](/docker-basic/docker-inspect/README.md)
+- [도커 허브에서 이미지 불러오기(docker pull)](/docker-basic/docker-pull/README.md)
 
 # Node.js 앱 이미지 빌드하기
 

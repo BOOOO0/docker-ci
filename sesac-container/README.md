@@ -155,6 +155,10 @@ sudo usermod -a -G docker boo
 
 - `docker network create -d bridge --subnet 10.190.0.0/16 --ip-range 10.190.0.0/20 test_bridge`
 
+- `-d` 옵션을 주지 않을 경우 네트워크의 default 타입은 bridge이다.
+
+- `--gateway 10.190.0.1` 옵션을 추가해서 게이트웨이의 ip를 직접 정해줄 수도 있다.
+
 - `docker network rm [네트워크 인터페이스명]`으로 삭제가 가능하다.
 
 - `docker network connect [네트워크명] [컨테이너명]`으로 컨테이너가 실행중이여도 다른 네트워크 영역을 변경할 수 있다. inspect로 확인이 가능하다.
@@ -210,6 +214,8 @@ sudo usermod -a -G docker boo
 
 - wordpress도 동일하다. 초기 실행때 DB 연동을 위해 기입할 목록을 미리 기입할 수 있다. 그리고 두 컨테이너는 같은 네트워크에 있으므로 호스트네임으로 컨테이너명을 줄 수 있다.
 
+- 같은 네트워크에 있지 않은 경우 도커 호스트의 ip로 연동이 가능하다.
+
 - 80번 포트로 wordpress로 접속하면 DB 연동 설정 화면은 생략되고 언어 선택 후 wordpress admin 설정만 하면 되는 것을 확인할 수 있다.
 
 ## 도커 볼륨
@@ -252,7 +258,7 @@ ENTRYPOINT ["apachectl"]
 CMD ["-D", "FOREGROUND"]
 ```
 
-- FROM - 베이스 이미지
+- FROM - 베이스 이미지, 내가 만든 이미지도 베이스 이미지가 될 수 있다.
 
 - MAINTAINER - 작성자
 
@@ -272,6 +278,137 @@ CMD ["-D", "FOREGROUND"]
 
 - VOLUME - 볼륨을 마운트한다. 위의 경우 컨테이너의 경로만 명시되어 있으며 위 db 이미지 불러오기처럼 호스트에 자동으로 볼륨이 생성된다.
 
-- ENTRYPOINT, CMD - 반드시 실행되어야 하는 명령어를 입력한다. 띄어쓰기를 `,`로 구분하고 변경 불가한 필수 부분이 ENTRYPOINT이고 변경 가능한 부분을 CMD에 작성한다.
+- ENTRYPOINT, CMD - 반드시 실행되어야 하는 명령어를 입력한다. 띄어쓰기를 `,`로 구분하고 변경 불가한 필수 부분이 ENTRYPOINT이고 변경 가능한 부분을 CMD에 작성한다. 이 부분은 컨테이너에 시작할때 수행할 특정 명령을 덧붙여서 실행할때와 같다.
 
 - `docker build -t sesac:aws .` - `.`은 경로로 Dockerfile이 있는 경로를 명시한다.
+
+## DB 컨테이너 빌드
+
+- my.cnf 파일을 미리 생성하여 mariadb의 구성을 자동화할 수 있다.
+
+- 그것 뿐만 아니라 RUN을 활용해서 DB의 생성이나 계정 생성 및 권한 부여도 자동화할 수 있다.
+
+```dockerfile
+FROM ubuntu:20.04
+ENV DEBIAN_FRONTEND noninteractive
+# apt install 시에, 발생할 수 있는 예를들어 '패키시 설치 정말 하겠습니까?', '비밀번호 입력햇주세요'같은거를 무시하고 진행할 수 있다고 한다.
+ENV MYSQL_ROOT_PASSWORD=Test1752!
+ENV MYSQL_DATABASE=wordpress
+ENV MYSQL_USER=wpuser
+ENV MYSQL_PASSWORD=Test1752!
+RUN sed -i 's/archive.ubuntu.com/ftp.daumkakao.com/g' /etc/apt/sources.list
+RUN apt-get update && \
+    apt-get install -y mariadb-server
+RUN service mysql start && \
+    mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "CREATE DATABASE ${MYSQL_DATABASE};" && \
+    mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "CREATE USER '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';" && \
+    mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* TO '${MYSQL_USER}'@'%';" && \
+    mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "FLUSH PRIVILEGES;" && \
+    service mysql stop
+COPY my.cnf /etc/mysql/my.cnf
+EXPOSE 3306
+CMD ["mysqld_safe"]
+```
+
+- `docker build -t wp-db:v1.0 -f Dockerfile.wp-db .`
+
+- ![image](../img/wp-db.PNG)
+
+- DB 생성이 자동화된 것을 확인할 수 있다.
+
+## wordpress WS 컨테이너 빌드
+
+```dockerfile
+FROM centos:7
+MAINTAINER boo
+RUN yum -y install https://rpms.remirepo.net/enterprise/remi-release-7.rpm && \
+    yum -y install epel-release yum-utils && \
+    yum-config-manager --enable remi-php74 && \
+    yum -y install httpd php php-mysqlnd wget unzip
+RUN wget https://ko.wordpress.org/latest-ko_KR.zip
+WORKDIR /var/www/html
+RUN unzip /latest-ko_KR.zip
+RUN mv wordpress/* .
+RUN chown -R apache:apache /var/www
+ENTRYPOINT ["httpd", "-D", "FOREGROUND"]
+```
+
+- `docker build -t wp-web:v1.0 -f Dockerfile.wp-web .`
+
+- ![image](../img/wpdbhost.PNG)
+
+- db 호스트로 컨테이너명을 기입해서 db를 연동한다.
+
+- 위 도커파일들의 엔트리 포인트에 httpd와 mysql_safe는 아파치 ws나 mysql 서버가 bin 명령으로도 실행이 가능한 듯 하고 그 실행을 의미하는 것으로 보인다.
+
+# Bind Mount vs Volume
+
+- `-v` 옵션으로 호스트의 디렉토리를 마운트할 수 있고 볼륨을 생성하면서 연결할 수 있다. 둘은 서로 다른 개념이다. 볼륨은 도커에 의해 관리된다.
+
+- 볼륨을 마운트할때 컨테이너 안에서 디렉토리의 권한을 설정할 수 있다. `-v [볼륨명 혹은 로컬 디렉토리 경로]:[컨테이너 경로]:[권한]` 권한 예시 - read only는 :ro
+
+- 하나의 볼륨을 복수의 컨테이너에 마운트할 수 있고 그것은 컨테이너간 공유 파일시스템처럼 동작한다.
+
+# docker hub에 이미지 PUSH
+
+- `docker tag [이미지명:태그] [내 docker hub ID]/[이미지명:태그]`로 이미지에 태그를 달아둔다.
+
+- 내 docker hub 아이디로 로그인하기 위해 `docker login` 명령어를 사용한다. `-u, -p` 옵션으로 ID와 비밀번호를 줄 수도 있고 그냥 사용하면 직접 입력한다.
+
+- `docker push [이미지명]`으로 docker hub에 이미지를 push할 수 있고 도커 허브에 접속해서 레포지토리에서 확인할 수 있다.
+
+- 태그만 다른 이미지라면 도커 허브에서 같은 레포지토리에 저장된다.
+
+- push한 이미지는 바로 run 명령을 통해 pull하면서 실행시킬 수 있다.
+
+- 이미지 레포지토리가 private이라면 pull을 할때도 docker login이 필요하다.
+
+# ONBUILD
+
+- ONBUILD는 ONBUILD에 명시한 내용을 제외한 채로 이미지를 빌드하게 한다.
+
+- 뭐 강의에서는 운영과 개발을 나눠서 도커를 모르는 개발자를 위해 사용한다고 하는데 이런 의의는 좋지만 자꾸 개발 운영 갈라치기하고 그러는거 보기 안좋네 누가 운영을 비하를 했나 뭘했나 요즘 도커 못하는 백엔드 개발자가 어디있나... 왜 부트캠프 강사들은 자기 포지션에 대한 이야기를 이렇게 하기를 좋아할까? 프론트도 똑같고
+
+```dockerfile
+FROM ubuntu:18.04
+RUN sed -i 's/archive.ubuntu.com/ftp.daumkakao.com/g' /etc/apt/sources.list
+RUN apt-get -y update
+RUN apt-get -y install nginx
+EXPOSE 80
+ONBUILD ADD website*.tar /var/www/html/
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+```dockerfile
+FROM boooo0/web-base:v1.0
+```
+
+- 이렇게 pull하는 쪽에서 베이스 이미지로 명시하고 pull해서 실행하면 ONBUILD 이하의 내용은 그때 실행된다.
+
+- tar 파일을 준비한 상태에서 `docker build -t boooo0/web-site:v1.0 .`로 ONBUILD 이하의 내용을 완성해 빌드한 후 다시 push한다.
+
+- 운영쪽에서 완성된 이미지를 확인한다. `docker run -d -p 80:80 --name=test-site boooo0/web-site:v1.0`
+
+# 사설 레지스트리
+
+- docker hub의 대안으로 사설 레지스트리를 생성할 수 있다.
+
+- 강의에서는 GCP에 인스턴스를 생성해서 진행했다.
+
+- gcp 네트워크는 aws vpc와 다르다. 서브넷을 지역에 생성하고 그 안에 vm을 생성한다.
+
+- Compute Engine 탭에서 메타 데이터 항목을 선택하고 내 로컬의 SSH 퍼블릭 키를 기입한다.
+
+- private key를 사용해서 ssh 접속을 할 수 있다. 이건 모든 인스턴스에 적용된다.
+
+- `docker run -d -p 5000:5000 --restart=always --name private-docker-registry registry`로 registry 이미지를 pull해서 실행한다.
+
+- push 혹은 pull을 진행할 서버에서 /etc/docker/daemon.json 파일에 { "insecure-registries":["[내 사설 도커 레지스트리의 주소:포트]"] }를 입력하고 도커 서비스를 재시작한다. 사설 레지스트리 서버에 대한 허용의 의미인 듯 하다.
+
+- ` docker tag sesac:aws [내 사설 도커 레지스트리의 주소:포트]/sesac:aws` `docker push [내 사설 도커 레지스트리의 주소:포트]/sesac:aws`로 사설 레지스트리에 push하고 등록된 이미지를 pull할 수도 있다.
+
+- 사설 레지스트리에 등록된 레포지토리 목록은 `http://[사설 레지스트리 주소:포트]/v2/_catalog`에서 호출되는 JSON 데이터로 확인이 가능하다.
+
+- 혹은 `curl -X GET [사설 레지스트리 주소:포트]/v2/_catalog`
+
+- `curl -X GET [사설 레지스트리 주소:포트]/v2/[이미지 이름]/tags/list`로 태그 리스트도 조회가 가능하다.

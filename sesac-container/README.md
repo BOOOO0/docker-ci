@@ -412,3 +412,146 @@ FROM boooo0/web-base:v1.0
 - 혹은 `curl -X GET [사설 레지스트리 주소:포트]/v2/_catalog`
 
 - `curl -X GET [사설 레지스트리 주소:포트]/v2/[이미지 이름]/tags/list`로 태그 리스트도 조회가 가능하다.
+
+# docker compose
+
+- 복수의 컨테이너를 yaml로 정의해서 실행시키기 위한 방식, 하나의 컨테이너여도 yaml로 선언적으로 작성하는 장점이 있는 듯 하다.
+
+```yml
+version: "3.3"
+services:
+  dbserver:
+    image: mysql:5.7
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    environment: # -e
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wpuser
+      MYSQL_PASSWORD: wppass
+  wordpress:
+    depends_on:
+      - dbserver # wordpress 컨테이너 실행에 앞서서 dbserver을 실행
+    image: wordpress:latest
+    volumes:
+      - wordpress_data:/var/www/html
+    ports: # -p 80:80
+      - "8888:80"
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: dbserver:3306
+      WORDPRESS_DB_USER: wpuser
+      WORDPRESS_DB_PASSWORD: wppass
+      WORDPRESS_DB_NAME: wordpress
+volumes:
+  db_data: {}
+  wordpress_data: {}
+```
+
+- 이번에도 DB가 연동된 상태로 wordpress가 실행된다.
+
+- 네트워크는 따로 정의되지 않았지만 dockercompose_default라는 이름으로 브릿지 네트워크가 생성된다. docker compose로 생성되는 컨테이너는 서로 같은 네트워크에 묶이는 것이 기본값으로 보인다.
+
+- 도커 컴포즈에서 컨테이너명은 yaml에서 정의한 서비스명이다. 실제 컨테이너명은 다르고 컨테이너 명령어를 사용할때는 실제 컨테이너명을 써야 한다.
+
+- `docker compose up -d`로 실행 `-d`는 컨테이너를 데몬으로 실행
+
+- `docker compose pause`, `docker compose unpause`로 일괄 정지, 재시작이 가능하다.
+
+- `docker compose port [서비스명] [포트]` - 컨테이너 포트와 맵핑된 로컬 포트 출력
+
+- `docker compose config` - 정의한 yaml 파일 기반의 정보 출력
+
+- `docker compose stop wordpress`, `docker compose rm wordpress`
+
+- `docker-compose down` - 컨테이너 삭제, `-v` 옵션주면 볼륨, `--rmi all`하면 이미지도 모두 삭제, 네트워크는 첫 down 시에 삭제인 듯 하다.
+
+- dry run - `docker compose config`로 출력된 정보를 그대로 yml파일로 생성한 다음 그 내용을 기반으로 docker compose를 실행
+
+# cAdvisor
+
+- 호스트의 정보를 통해 컨테이너를 모니터링한다.
+
+```bash
+docker run \
+  --volume=/:/rootfs:ro \
+  --volume=/var/run:/var/run:ro \
+  --volume=/sys:/sys:ro \
+  --volume=/var/lib/docker/:/var/lib/docker:ro \
+  --volume=/dev/disk/:/dev/disk:ro \
+  --publish=8080:8080 \
+  --detach=true \
+  --name=cadvisor \
+  --privileged \
+  --device=/dev/kmsg \
+  gcr.io/cadvisor/cadvisor:$VERSION
+```
+
+- Bind Mount로 도커 호스트의 디렉토리를 마운트한다.
+
+- privileged 일반적으로 생성되는 Container는 Host에서 독립된 Linux namespace 영역을 가지고 있어서 Host 시스템의 주요자원에 접근할 수 있는 권한이 없습니다. 하지만 다양한 종류의 Kubernetes Addon 들이 동작하는 것을 보면 각 Addon 역할을 수행하는 Pod의 Container가 생성되며 생성된 Container가 Host의 자원에 접근하여 동작하는 경우를 볼 수 있습니다. 이렇게 Container 임에도 불구하고 Host 시스템의 주요 자원에 접근할 수 있는 Container가 바로 Privileged Container 입니다.
+
+- 이유는 위와 같다.
+
+- 기본적으로는 호스트의 사용량 정보이고 containers에서 컨테이너를 선택해서 모니터링할 수 있다.
+
+- 위의 wordpress에 접속해서 새로고침을 여러번 반복하면 그 컨테이너의 cpu, memory, network throughput이 올라가는 것을 확인할 수 있다.
+
+- 컨테이너에 할당된 리소스도 나오는데 docker update로 해당 부분을 변경하면 바로 반영이 된다.
+
+- 다른 정보들은 docker top, docker stats의 정보와 유사하다.
+
+# Docker Swarm
+
+- docker에서 기본으로 제공하는 컨테이너 오케스트레이션 기능, 컨테이너 클러스터를 구성한다. 중소규모의 컨테이너를 제어하기에 알맞다.
+
+- 마스터 VM이 있고 VM 하나에 TASK가 있고 그 안에 컨테이너가 있다. Node가 VM, Pod가 TASK? TASK가 노드고 컨테이너가 Pod가 맞는 것 같은데
+
+- TASK라는 단위 안에 컨테이너가 동작하는건 맞는데 컨테이너 자체를 의미하는 pod와 다른가? 아무튼 TASK가 가장 작은 단위이다. 그냥 설명이 이상했음 pod == task
+
+- 마스터 VM에 `docker swarm init --advertise-addr 192.168.111.131`로 자신의 IP를 입력해서 도커 스웜 클러스터의 마스터 노드임을 선언한다.
+
+- 출력되는 토큰 정보를 넣어서 `docker swarm join --token SWMTKN-1-1rnw2s7wvhvfaceg6oljbg5b9bo44ecqtovk1rpdnyuhbfxhaw-exfdg3ue3vi4o6cv1cv61766u 192.168.111.131:2377`를 워커 노드에 실행시켜서 워커 노드로 편입시킨다.
+
+- 마스터의 2377포트가 열려있어야 한다.
+
+- `docker node ls`로 노드 목록을 확인할 수 있다.
+
+- `docker node inspect [노드명]`으로 노드의 정보를 확인할 수 있다.
+
+- `docker service create --name my_web --replicas 3 --publish published=8080,target=80 nginx` - my_web이라는 서비스를 생성할 것인데 3개 만들어서 8080:80으로 맵핑, 베이스 이미지는 nginx를 pull해서
+
+- ![image](../img/servicetask.PNG)
+
+- `docker service ls`로 서비스 목록 확인 가능하다. 모든 서비스 명령어는 마스터 노드만 사용할 수 있다.
+
+- `docker service logs my_web`로 서비스의 로그 확인이 가능하다.
+
+- `docker service scale my_web=5`로 TASK의 수를 조정할 수 있다. 각 TASK는 적절히 노드에 나눠진다.(스케줄링)
+
+- 스케일을 맞추기 위해 만약 컨테이너 하나가 강제로 종료되면 그 기록이 남고 새로 컨테이너를 생성한다.
+
+- ![image](../img/dockerswarmscale.PNG)
+
+- VM이 다운되었을 것을 가정해서 VM을 하나 내리면 스케일을 유지하기 위해 다른 노드에서 새로 컨테이너를 실행시킨다.
+
+- ![image](../img/worker3down.PNG)
+
+- 마스터 노드를 다운시키면 실행중이던 다른 노드의 컨테이너는 계속 실행은 되지만 총 스케일은 유지하지 못한다.
+
+- 마스터 노드를 다시 올리면 총 스케일을 다시 맞춰서 스케줄링을 한다.
+
+- 도커 스웜으로 서비스를 생성하면 overlay 타입의 네트워크가 생성이 되는데 마스터 노드가 다운되더라도 그 네트워크를 통해 서비스에 포함되는 살아있는 컨테이너가 트래픽을 전달받을 수 있다.
+
+- 오버레이 네트워크는 각 호스트가 서로 통신할 수 있도록 하는 분산 네트워크이다. https://code-machina.github.io/2019/08/08/Docker-Swarm-Overlay-Network-Part-1.html
+
+- `docker service update --image boooo0/web-site:v1.0 my_web`로 실행중인 모든 컨테이너를 새로운 이미지로 갱신해서 롤링 업데이트할 수 있다.
+
+- 사설 레지스트리의 이미지도 똑같이 롤링 업데이트에 사용할 수 있다.
+
+- 롤링 업데이트는 하나를 생성하면 하나를 지운다. 비율을 정해서 25%, 50%씩 생성한 다음 지우도록 할 수 있다. 기본은 25%
+
+- `docker node update --availability drain worker1` - 한 노드의 가용성을 drain으로 변경하는 명령어인데 그 노드가 가진 모든 TASK를 빼내서 다른 노드로 옮긴다. 기본값은 active이다. 해당 노드 인스턴스에 문제가 있을 경우 사용한다고 한다.
+
+- `docker node update --availability pause worker2` - pause 상태는 기존의 컨테이너는 유지되지만 `docker service scale my_web=8`처럼 스케일 아웃을 했을 때 worker2에는 TASK가 할당되지 않도록 한다.
